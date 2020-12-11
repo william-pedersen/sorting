@@ -37,7 +37,8 @@ class Sorting:
             self.expand             = expand
             self.expandbuffer       = expandbuffer
             if isinstance(expand, (list, tuple)):
-                self.expandbuffer   = list(expandbuffer) + [0] * max(0, len(expand) - len(list(expandbuffer)))
+                self.expandbuffer   = [0] if expandbuffer is None else list(expandbuffer)
+                self.expandbuffer  += self.expandbuffer + [0] * max(0, len(expand) - len(self.expandbuffer))
                 self.expand         = [Bin(size = _bin, buffer = buffer) for _bin, buffer in zip(expand, self.expandbuffer)]
             elif not isinstance(self.expand, (float, int)):
                 self.expand         = None
@@ -57,7 +58,7 @@ class Sorting:
             for _bin in self.bins:
                 if _bin.addItem(item = item, size = size):
                     return _bin
-            if self.expand != None:
+            if self.expand is not None:
                 if isinstance(self.expand, (list, tuple)):
                     for _bin in self.expand:
                         if _bin.addItem(item = item, size = size):
@@ -95,7 +96,7 @@ def test():
         bins            = [11] * 4,
         isGreedy        = True,
         doTrash         = True,
-        expand          = 20.0,
+        expand          = 20,
         expandbuffer    = None
     )
     class TestObject(object):
