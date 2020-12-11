@@ -28,19 +28,24 @@ class Sorting:
 
         def __init__(self, 
                 bins: [float], buffers: [float] = [], 
-                expand: Union[list, tuple, float, int] = None,
+                expand: Union[list, tuple, float, int] = None, expandbuffer: Union[list, tuple, float, int] = None,
                 isGreedy: bool = False, doTrash: bool = True):
-            Bin             = Sorting.Binpacking.Bin
-            self.buffers    = buffers + [0] * max(0, len(bins) - len(buffers))
-            self.bins       = [Bin(size = _bin, buffer = buffer) for _bin, buffer in zip(bins, self.buffers)]
-            self.trash      = Bin(-1)
-            self.expand     = expand
+            Bin                     = Sorting.Binpacking.Bin
+            self.buffers            = buffers + [0] * max(0, len(bins) - len(buffers))
+            self.bins               = [Bin(size = _bin, buffer = buffer) for _bin, buffer in zip(bins, self.buffers)]
+            self.trash              = Bin(-1)
+            self.expand             = expand
+            self.expandbuffer       = expandbuffer
             if isinstance(expand, (list, tuple)):
-                self.expand = [Bin(size = _bin, buffer = 0) for _bin in expand]
+                self.expandbuffer   = list(expandbuffer) + [0] * max(0, len(expand) - len(list(expandbuffer)))
+                self.expand         = [Bin(size = _bin, buffer = buffer) for _bin, buffer in zip(expand, self.expandbuffer)]
             elif not isinstance(self.expand, (float, int)):
-                self.expand = None
-            self.isGreedy   = isGreedy
-            self.doTrash    = doTrash
+                self.expand         = None
+                self.expandbuffer   = None
+            elif not isinstance(self.expandbuffer, (float, int)):
+                self.expandbuffer   = 0
+            self.isGreedy           = isGreedy
+            self.doTrash            = doTrash
 
         def _addBin(self, bin: Bin) -> Bin:
             self.bins.append(bin)
@@ -58,8 +63,8 @@ class Sorting:
                         if _bin.addItem(item = item, size = size):
                             return self._addBin(bin = self.expand.pop(self.expand.index(_bin)))
                 else:
-                    if size <= self.expand:
-                        _bin = Sorting.Binpacking.Bin(size = self.expand, buffer = 0)
+                    if size - self.expandbuffer <= self.expand:
+                        _bin = Sorting.Binpacking.Bin(size = self.expand, buffer = self.expandbuffer)
                         assert _bin.addItem(item = item, size = size)
                         return self._addBin(bin = _bin)
             if self.doTrash:
@@ -87,10 +92,11 @@ class Sorting:
 
 def test():
     bins = Sorting.Binpacking(
-        bins = [11] * 4,
-        isGreedy = True,
-        doTrash = True,
-        expand = 20.0
+        bins            = [11] * 4,
+        isGreedy        = True,
+        doTrash         = True,
+        expand          = 20.0,
+        expandbuffer    = None
     )
     class TestObject(object):
         def __init__(self, size: int):
@@ -103,8 +109,8 @@ def test():
             return "TestObject {}".format(self.size)
 
     bins.fdumps(
-        items = [TestObject(10), TestObject(10), TestObject(11), TestObject(1), TestObject(2), TestObject(7), TestObject(20), TestObject(15), TestObject(4), TestObject(22)],
-        func = TestObject.getSize
+        items   = [TestObject(10), TestObject(10), TestObject(11), TestObject(1), TestObject(2), TestObject(7), TestObject(20), TestObject(15), TestObject(4), TestObject(22)],
+        func    = TestObject.getSize
     )
     print(bins)
 
