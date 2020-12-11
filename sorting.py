@@ -1,19 +1,21 @@
 import types
+from typing import Union
+from typing import Optional
 
 class Sorting:
     class Binpacking(object):
         class Bin(object):
-            def __init__(self, size: float, buffer: float = 0):
+            def __init__(self, size: Union[float, int], buffer: Union[float, int] = 0):
                 self.items  = []
                 self.size   = size
                 self.sum    = 0
                 self.buffer = buffer
                 self.full   = False
 
-            def doesFit(self, size: float) -> bool:
+            def doesFit(self, size: Union[float, int]) -> bool:
                 return (self.sum + size <= self.size + self.buffer and not self.full) or self.size == -1
 
-            def addItem(self, item: object, size: float) -> bool:
+            def addItem(self, item: object, size: Union[float, int]) -> bool:
                 if not self.doesFit(size = size):
                     return False
                 self.items.append(item)
@@ -24,26 +26,47 @@ class Sorting:
             def __repr__(self) -> str:
                 return "Bin Size: {}/{}\n - Items: {}\n".format(self.sum, self.size, self.items)
 
-        def __init__(self, bins: [float], buffers: [float] = [], 
+        def __init__(self, 
+                bins: [float], buffers: [float] = [], 
+                expand: Union[list, tuple, float, int] = None,
                 isGreedy: bool = False, doTrash: bool = True):
             Bin             = Sorting.Binpacking.Bin
             self.buffers    = buffers + [0] * max(0, len(bins) - len(buffers))
             self.bins       = [Bin(size = _bin, buffer = buffer) for _bin, buffer in zip(bins, self.buffers)]
             self.trash      = Bin(-1)
+            self.expand     = expand
+            if isinstance(expand, (list, tuple)):
+                self.expand = [Bin(size = _bin, buffer = 0) for _bin in expand]
+            elif not isinstance(self.expand, (float, int)):
+                self.expand = None
             self.isGreedy   = isGreedy
             self.doTrash    = doTrash
 
-        def dump(self, item: object, size: float):
+        def _addBin(self, bin: Bin) -> Bin:
+            self.bins.append(bin)
+            return bin
+
+        def dump(self, item: object, size: Union[float, int]):
             if self.isGreedy:
                 self.bins.sort(key = lambda x : x.sum, reverse = False)
             for _bin in self.bins:
                 if _bin.addItem(item = item, size = size):
                     return _bin
+            if self.expand != None:
+                if isinstance(self.expand, (list, tuple)):
+                    for _bin in self.expand:
+                        if _bin.addItem(item = item, size = size):
+                            return self._addBin(bin = self.expand.pop(self.expand.index(_bin)))
+                else:
+                    if size <= self.expand:
+                        _bin = Sorting.Binpacking.Bin(size = self.expand, buffer = 0)
+                        assert _bin.addItem(item = item, size = size)
+                        return self._addBin(bin = _bin)
             if self.doTrash:
                 assert self.trash.addItem(item = item, size = size)
             return self.trash
         
-        def dumps(self, items: [object], sizes: [float]):
+        def dumps(self, items: [object], sizes: Union[float, int]):
             sizes += [(0, sizes[0])[len(sizes) == 1]] * max(0, len(items) - len(sizes))
             [self.dump(item = item, size = size) for item, size in zip(items, sizes)]
 
@@ -66,7 +89,8 @@ def test():
     bins = Sorting.Binpacking(
         bins = [11] * 4,
         isGreedy = True,
-        doTrash = True
+        doTrash = True,
+        expand = 20.0
     )
     class TestObject(object):
         def __init__(self, size: int):
@@ -79,7 +103,7 @@ def test():
             return "TestObject {}".format(self.size)
 
     bins.fdumps(
-        items = [TestObject(10), TestObject(10), TestObject(11), TestObject(1), TestObject(2), TestObject(7)],
+        items = [TestObject(10), TestObject(10), TestObject(11), TestObject(1), TestObject(2), TestObject(7), TestObject(20), TestObject(15), TestObject(4), TestObject(22)],
         func = TestObject.getSize
     )
     print(bins)
