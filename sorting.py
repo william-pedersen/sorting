@@ -1,8 +1,8 @@
 import types
 
 class Sorting:
-    class Binpacking:
-        class Bin:
+    class Binpacking(object):
+        class Bin(object):
             def __init__(self, size: float, buffer: float = 0):
                 assert isinstance(size, (int, float)) and isinstance(buffer, (int, float))
                 self.items  = []
