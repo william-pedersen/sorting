@@ -181,7 +181,7 @@ class Sorting:
                     x   = np.linspace(1, len(times), 200)
                     _y  = make_interp_spline(range(1, len(times) + 1), times)
                     m   = sum(times) / len(times)
-                    y   = [y - m for y in _y(x)]
+                    y   = [y for y in _y(x)]
                     ax.set_facecolor('#23272A')
                     fig.patch.set_facecolor('#2C2F33')
                     ax.grid(color = '#2C2F33')
@@ -191,7 +191,22 @@ class Sorting:
                     ax.spines['right'].set_color('#2C2F33')
                     ax.tick_params(axis='x', colors='#FFFFFF')
                     ax.tick_params(axis='y', colors='#FFFFFF')
-                    ax.axline((0, 0), (len(times), 0), c = '#7289DA')
+
+                    ax.set_title('Sorting Speed Over Iterations', color = '#FFFFFF')
+                    ax.set_ylabel('Speed (s)', color = '#FFFFFF')
+                    ax.set_xlabel('Iteration', color = '#FFFFFF')
+
+
+                    ax.axline((1, m), (repetitions, m), c = '#99AAB5', alpha=0.6)
+
+                    a, b = np.polyfit(x, y, deg=1)
+                    y_est = a * x + b
+                    y_err = (0.25 / len(times)) * x.std() * np.sqrt(1/len(x) +
+                            (x - x.mean())**2 / np.sum((x - x.mean())**2))
+
+                    ax.plot(x, y_est, '-', c = '#7289DA')
+                    ax.fill_between(x, y_est - y_err, y_est + y_err, alpha=0.2, color = '#7289DA')
+
                     ax.plot(x, y, c='#FFFFFF')
 
                             
