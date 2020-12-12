@@ -1,6 +1,8 @@
 import types
 from typing import Union
 from typing import Optional
+import timeit
+import numpy as np
 
 class Sorting:
     class Binpacking(object):
@@ -23,13 +25,26 @@ class Sorting:
                 self.full = self.sum >= self.size
                 return True
 
+            def __eq__(self, _bin):
+                assert isinstance(_bin, type(self))
+                return self.sum / (self.size + self.buffer) == _bin.sum / (_bin.size + _bin.buffer)
+
+            def __lt__(self, _bin):
+                assert isinstance(_bin, type(self))
+                return self.sum / (self.size + self.buffer) < _bin.sum / (_bin.size + _bin.buffer)
+
+            def __le__(self, _bin):
+                assert isinstance(_bin, type(self))
+                return self.sum / (self.size + self.buffer) <= _bin.sum / (_bin.size + _bin.buffer)
+
             def __repr__(self) -> str:
-                return "Bin Size: {}/{}\n - Items: {}\n".format(self.sum, self.size, self.items)
+                return f"Bin Size: {self.sum}/{self.size}\n - Items: {self.items}\n"
 
         def __init__(self, 
                 bins: [float], buffers: [float] = [], 
                 expand: Union[list, tuple, float, int] = None, expandbuffer: Union[list, tuple, float, int] = None,
-                isGreedy: bool = False, doTrash: bool = True):
+                isGreedy: bool = False, doTrash: bool = True
+        ):
             Bin                     = Sorting.Binpacking.Bin
             self.buffers            = buffers + [0] * max(0, len(bins) - len(buffers))
             self.bins               = [Bin(size = _bin, buffer = buffer) for _bin, buffer in zip(bins, self.buffers)]
@@ -48,26 +63,47 @@ class Sorting:
             self.isGreedy           = isGreedy
             self.doTrash            = doTrash
 
-        def _addBin(self, bin: Bin) -> Bin:
-            self.bins.append(bin)
-            return bin
+        def _addBin(self, _bin: Bin) -> Bin:
+            self.bins.append(_bin)
+            return _bin
+
+        def _draw(self):
+            import matplotlib.pyplot as plt
+            import numpy as np
+
+            
+            fig, ax = plt.subplots()
+            for _bin in self.bins:
+                x = 0
+                y = (_bin.sum / _bin.size) - 1
+                scale = len(_bin.items) * 100
+                color = ['tab:blue'] 
+                ax.scatter(x, y, c=color, s=scale, label=color,
+                        alpha=0.6, edgecolors='none')
+
+            
+            ax.grid(True)
+            plt.show()
 
         def dump(self, item: object, size: Union[float, int]):
             if self.isGreedy:
-                self.bins.sort(key = lambda x : x.sum, reverse = False)
-            for _bin in self.bins:
+                _bin = min(self.bins)
                 if _bin.addItem(item = item, size = size):
                     return _bin
+            else:
+                for _bin in self.bins:
+                    if _bin.addItem(item = item, size = size):
+                        return _bin
             if self.expand is not None:
                 if isinstance(self.expand, (list, tuple)):
                     for _bin in self.expand:
                         if _bin.addItem(item = item, size = size):
-                            return self._addBin(bin = self.expand.pop(self.expand.index(_bin)))
+                            return self._addBin(_bin = self.expand.pop(self.expand.index(_bin)))
                 else:
                     if size - self.expandbuffer <= self.expand:
                         _bin = Sorting.Binpacking.Bin(size = self.expand, buffer = self.expandbuffer)
                         assert _bin.addItem(item = item, size = size)
-                        return self._addBin(bin = _bin)
+                        return self._addBin(_bin = _bin)
             if self.doTrash:
                 assert self.trash.addItem(item = item, size = size)
             return self.trash
@@ -87,33 +123,89 @@ class Sorting:
         def __repr__(self) -> str:
             return "Bins: \n" + \
                 (" {}\n"*len(self.bins)).format(*self.bins) + \
-                ("" ,"\nTrash:\n {}".format(self.trash))[self.doTrash]
+                ("", f"\nTrash:\n {self.trash}")[self.doTrash]
+
+        class Test:
+            @staticmethod
+            def testObjects(doPrint: bool = True, doDraw: bool = False):
+                bins = Sorting.Binpacking(
+                    bins            = [11] * 4,
+                    isGreedy        = True,
+                    doTrash         = True,
+                    expand          = 20,
+                    expandbuffer    = None
+                )
+                class TestObject(object):
+                    def __init__(self, size: int):
+                        self.size = size
+
+                    def getSize(self) -> int:
+                        return self.size
+
+                    def __repr__(self) -> str:
+                        return f"TestObject {self.size}"
+
+                bins.fdumps(
+                    items   = [TestObject(10), TestObject(10), TestObject(11), TestObject(1), TestObject(2), TestObject(7), TestObject(20), TestObject(15), TestObject(4), TestObject(22)],
+                    func    = TestObject.getSize
+                )
+                if doPrint: 
+                    print(bins)
+                if doDraw:
+                    bins._draw()
+
+            @staticmethod
+            def speedTestObjects(iterations: int, repetitions: int, doDraw: bool = False):
+                test = Sorting.Binpacking.Test.testObjects
+                test(doPrint = True, doDraw = False)
+                timer = timeit.Timer(lambda: test(doPrint = False, doDraw = False))
+                #time = timer.timeit(iterations)
+                times = timer.repeat(repeat = repetitions, number = iterations)
+                time = min(times)
+                print(
+                    f"Time                           : {time:.2f}s",
+                    f" - Iterations                  : {iterations:,}",
+                    f" - Repetitions                 : {repetitions:,}",
+                    f" - Objects Sorted              : {iterations*10:,}",
+                    f" - Time Per Iteration          : {time/iterations*1000:.2f}ms",
+                    sep='\n')
+
+
+                if doDraw:
+                    import matplotlib.pyplot as plt
+                    import numpy as np
+                    from scipy.interpolate import make_interp_spline, BSpline
+
+                            
+                    fig, ax = plt.subplots()
+                    x   = np.linspace(1, len(times), 200)
+                    _y  = make_interp_spline(range(1, len(times) + 1), times)
+                    m   = sum(times) / len(times)
+                    y   = [y - m for y in _y(x)]
+                    ax.set_facecolor('#23272A')
+                    fig.patch.set_facecolor('#2C2F33')
+                    ax.grid(color = '#2C2F33')
+                    ax.spines['bottom'].set_color('#2C2F33')
+                    ax.spines['left'].set_color('#2C2F33')
+                    ax.spines['top'].set_color('#2C2F33')
+                    ax.spines['right'].set_color('#2C2F33')
+                    ax.tick_params(axis='x', colors='#FFFFFF')
+                    ax.tick_params(axis='y', colors='#FFFFFF')
+                    ax.axline((0, 0), (len(times), 0), c = '#7289DA')
+                    ax.plot(x, y, c='#FFFFFF')
+
+                            
+                    ax.grid(True)
+                    plt.show()
+
 
 
 
 def test():
-    bins = Sorting.Binpacking(
-        bins            = [11] * 4,
-        isGreedy        = True,
-        doTrash         = True,
-        expand          = 20,
-        expandbuffer    = None
-    )
-    class TestObject(object):
-        def __init__(self, size: int):
-            self.size = size
-
-        def getSize(self) -> int:
-            return self.size
-
-        def __repr__(self) -> str:
-            return "TestObject {}".format(self.size)
-
-    bins.fdumps(
-        items   = [TestObject(10), TestObject(10), TestObject(11), TestObject(1), TestObject(2), TestObject(7), TestObject(20), TestObject(15), TestObject(4), TestObject(22)],
-        func    = TestObject.getSize
-    )
-    print(bins)
+    #test = Sorting.Binpacking.Test.testObjects
+    #test(doPrint = True, doDraw = False)
+    test = Sorting.Binpacking.Test.speedTestObjects
+    test(iterations = 10000, repetitions = 10, doDraw = False)
 
 
 if __name__ == "__main__":
