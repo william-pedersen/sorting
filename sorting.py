@@ -25,15 +25,15 @@ class Sorting:
                 self.full = self.sum >= self.size
                 return True
 
-            def __eq__(self, _bin):
+            def __eq__(self, _bin) -> bool:
                 assert isinstance(_bin, type(self))
                 return self.sum / (self.size + self.buffer) == _bin.sum / (_bin.size + _bin.buffer)
 
-            def __lt__(self, _bin):
+            def __lt__(self, _bin) -> bool:
                 assert isinstance(_bin, type(self))
                 return self.sum / (self.size + self.buffer) < _bin.sum / (_bin.size + _bin.buffer)
 
-            def __le__(self, _bin):
+            def __le__(self, _bin) -> bool:
                 assert isinstance(_bin, type(self))
                 return self.sum / (self.size + self.buffer) <= _bin.sum / (_bin.size + _bin.buffer)
 
